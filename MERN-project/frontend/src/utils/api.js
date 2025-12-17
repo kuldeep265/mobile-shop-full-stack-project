@@ -1,6 +1,13 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Force production URL for now
+const API_URL = 'https://mobile-shop-full-stack-project.onrender.com/api';
+
+// Debug logging
+console.log('🔧 API Configuration:');
+console.log('Environment:', import.meta.env.MODE);
+console.log('VITE_API_URL from env:', import.meta.env.VITE_API_URL);
+console.log('Final API_URL (forced):', API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
