@@ -6,7 +6,13 @@ const userSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'Please add a name'],
-    trim: true
+    trim: true,
+    validate: {
+      validator: function(v) {
+        return /^[a-zA-Z\s]+$/.test(v);
+      },
+      message: 'Name should contain only letters and spaces'
+    }
   },
   email: {
     type: String,

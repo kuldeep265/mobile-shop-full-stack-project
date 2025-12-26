@@ -20,12 +20,26 @@ const io = socketIo(server, {
 });
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+  origin: [
+    process.env.FRONTEND_URL || "http://localhost:3000",
+    /\.vercel\.app$/, // Allow all Vercel deployments
+    "https://localhost:3000",
+    "http://localhost:3000"
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/fone-factory')
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/fone-factory';
+console.log('Connecting to MongoDB...');
+mongoose.connect(mongoURI)
 .then(async () => {
   console.log('MongoDB Connected');
   

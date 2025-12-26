@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
-import { FaStar, FaShoppingCart, FaHeart } from 'react-icons/fa';
+import { FaStar, FaShoppingCart, FaHeart, FaArrowRight, FaTruck, FaShieldAlt, FaHeadset } from 'react-icons/fa';
 import SaleTag from '../components/SaleTag';
 import CompareButton from '../components/CompareButton';
+import AnimatedContainer from '../components/ui/AnimatedContainer';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import LoadingSpinner, { PageLoader } from '../components/ui/LoadingSpinner';
 
 const Home = () => {
   console.log('Home component is rendering');
@@ -37,124 +41,254 @@ const Home = () => {
     }
   };
 
-  const ProductCard = ({ product }) => (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow relative">
-      <SaleTag discount={product.discount} />
-      <Link to={`/product/${product._id}`}>
-        <img
-          src={product.images?.[0]?.url || '/placeholder.png'}
-          alt={product.name}
-          className="w-full h-64 object-cover"
-        />
-      </Link>
-      <div className="p-4">
-        <Link to={`/product/${product._id}`}>
-          <h3 className="text-lg font-semibold mb-2 hover:text-blue-600">{product.name}</h3>
-        </Link>
-        <p className="text-gray-600 mb-2">{product.brand}</p>
-        <div className="flex items-center mb-2">
-          <div className="flex text-yellow-400">
-            {[...Array(5)].map((_, i) => (
-              <FaStar key={i} className={i < Math.floor(product.ratings?.average || 0) ? 'fill-current' : ''} />
-            ))}
+  const ProductCard = ({ product, index = 0 }) => (
+    <AnimatedContainer animation="fadeIn" delay={index * 100}>
+      <Card className="overflow-hidden group relative">
+        <SaleTag discount={product.discount} />
+        <div className="relative overflow-hidden">
+          <Link to={`/product/${product._id}`}>
+            <img
+              src={product.images?.[0]?.url || '/placeholder.png'}
+              alt={product.name}
+              className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-110"
+            />
+          </Link>
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
+            <Link 
+              to={`/product/${product._id}`}
+              className="opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300"
+            >
+              <Button variant="primary" size="sm">
+                Quick View
+              </Button>
+            </Link>
           </div>
-          <span className="ml-2 text-sm text-gray-600">
-            ({product.numReviews || 0})
-          </span>
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-2xl font-bold text-blue-600">₹{product.price?.toLocaleString() || '0'}</span>
-            {product.originalPrice && product.originalPrice > product.price && (
-              <span className="ml-2 text-gray-500 line-through text-sm">
-                ₹{product.originalPrice.toLocaleString()}
+        <div className="p-4">
+          <Link to={`/product/${product._id}`}>
+            <h3 className="text-lg font-semibold mb-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 line-clamp-2">
+              {product.name}
+            </h3>
+          </Link>
+          <p className="text-gray-600 dark:text-gray-400 mb-2 text-sm">{product.brand}</p>
+          <div className="flex items-center mb-3">
+            <div className="flex text-yellow-400">
+              {[...Array(5)].map((_, i) => (
+                <FaStar 
+                  key={i} 
+                  className={`transition-colors duration-200 ${
+                    i < Math.floor(product.ratings?.average || 0) ? 'text-yellow-400' : 'text-gray-300'
+                  }`} 
+                />
+              ))}
+            </div>
+            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+              ({product.numReviews || 0})
+            </span>
+          </div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                ₹{product.price?.toLocaleString() || '0'}
               </span>
-            )}
+              {product.originalPrice && product.originalPrice > product.price && (
+                <span className="ml-2 text-gray-500 line-through text-sm">
+                  ₹{product.originalPrice.toLocaleString()}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <Button 
+              variant="primary" 
+              size="sm" 
+              className="flex-1 group"
+            >
+              <FaShoppingCart className="mr-2 group-hover:animate-bounce" />
+              Add to Cart
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="hover:text-red-500 hover:border-red-500"
+            >
+              <FaHeart />
+            </Button>
+            <CompareButton product={product} />
           </div>
         </div>
-        <div className="mt-4 flex space-x-2">
-          <button className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 flex items-center justify-center">
-            <FaShoppingCart className="mr-2" />
-            Add to Cart
-          </button>
-          <button className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100">
-            <FaHeart />
-          </button>
-          <CompareButton product={product} />
-        </div>
-      </div>
-    </div>
+      </Card>
+    </AnimatedContainer>
   );
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-center">
-          <div className="text-2xl font-bold mb-4">Loading...</div>
-          {error && <div className="text-red-600">{error}</div>}
-        </div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (
-    <div>
+    <div className="bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-5xl font-bold mb-4">Welcome to Fone Factory</h1>
-          <p className="text-xl mb-8">Discover the latest smartphones at unbeatable prices</p>
-          <Link
-            to="/products"
-            className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 inline-block"
-          >
-            Shop Now
-          </Link>
+      <section className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 text-white py-20 overflow-hidden">
+        <div className="absolute inset-0 bg-black opacity-20"></div>
+        <div className="absolute inset-0">
+          <div className="absolute top-10 left-10 w-20 h-20 bg-white opacity-10 rounded-full animate-bounce"></div>
+          <div className="absolute top-32 right-20 w-16 h-16 bg-white opacity-10 rounded-full animate-bounce" style={{animationDelay: '1s'}}></div>
+          <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-white opacity-10 rounded-full animate-bounce" style={{animationDelay: '2s'}}></div>
+        </div>
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <AnimatedContainer animation="fadeIn">
+            <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+              Welcome to Fone Factory
+            </h1>
+          </AnimatedContainer>
+          <AnimatedContainer animation="fadeIn" delay={300}>
+            <p className="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">
+              Discover the latest smartphones at unbeatable prices with premium quality and exceptional service
+            </p>
+          </AnimatedContainer>
+          <AnimatedContainer animation="fadeIn" delay={600}>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Link to="/products">
+                <button className="inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-white text-blue-600 hover:bg-gray-100 hover:text-blue-700 shadow-xl hover:shadow-2xl">
+                  Shop Now
+                  <FaArrowRight className="ml-2" />
+                </button>
+              </Link>
+              <Link to="/products?category=featured">
+                <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-blue-600">
+                  View Featured
+                </Button>
+              </Link>
+            </div>
+          </AnimatedContainer>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 bg-white dark:bg-gray-800">
+        <div className="container mx-auto px-4">
+          <AnimatedContainer animation="fadeIn">
+            <h2 className="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">
+              Why Choose Fone Factory?
+            </h2>
+          </AnimatedContainer>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <AnimatedContainer animation="slideInLeft" delay={200}>
+              <Card className="text-center group">
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <FaTruck className="text-2xl text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Free Shipping</h3>
+                <p className="text-gray-600 dark:text-gray-400">Free delivery on orders above ₹999</p>
+              </Card>
+            </AnimatedContainer>
+            <AnimatedContainer animation="fadeIn" delay={400}>
+              <Card className="text-center group">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <FaShieldAlt className="text-2xl text-green-600 dark:text-green-400" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Secure Payment</h3>
+                <p className="text-gray-600 dark:text-gray-400">100% secure payment processing</p>
+              </Card>
+            </AnimatedContainer>
+            <AnimatedContainer animation="slideInRight" delay={600}>
+              <Card className="text-center group">
+                <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <FaHeadset className="text-2xl text-purple-600 dark:text-purple-400" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">24/7 Support</h3>
+                <p className="text-gray-600 dark:text-gray-400">Round the clock customer support</p>
+              </Card>
+            </AnimatedContainer>
+          </div>
         </div>
       </section>
 
       {/* Featured Products */}
-      <section className="py-12 container mx-auto px-4">
-        <h2 className="text-3xl font-bold mb-8">Featured Products</h2>
-        {featuredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product._id} product={product} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-600">No featured products available. Add products through admin dashboard.</p>
-        )}
-      </section>
-
-      {/* Best Sellers */}
-      <section className="py-12 bg-gray-100">
+      <section className="py-16 bg-gray-50 dark:bg-gray-900">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-8">Best Sellers</h2>
-          {bestSellers.length > 0 ? (
+          <AnimatedContainer animation="fadeIn">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold mb-4 text-gray-900 dark:text-white">Featured Products</h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Handpicked selection of the best smartphones with cutting-edge technology
+              </p>
+            </div>
+          </AnimatedContainer>
+          {featuredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {bestSellers.map((product) => (
-                <ProductCard key={product._id} product={product} />
+              {featuredProducts.map((product, index) => (
+                <ProductCard key={product._id} product={product} index={index} />
               ))}
             </div>
           ) : (
-            <p className="text-gray-600">No best sellers available yet.</p>
+            <AnimatedContainer animation="fadeIn">
+              <Card className="text-center py-12">
+                <p className="text-gray-600 dark:text-gray-400 text-lg">
+                  No featured products available. Add products through admin dashboard.
+                </p>
+              </Card>
+            </AnimatedContainer>
+          )}
+        </div>
+      </section>
+
+      {/* Best Sellers */}
+      <section className="py-16 bg-white dark:bg-gray-800">
+        <div className="container mx-auto px-4">
+          <AnimatedContainer animation="fadeIn">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold mb-4 text-gray-900 dark:text-white">Best Sellers</h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Most popular phones loved by our customers
+              </p>
+            </div>
+          </AnimatedContainer>
+          {bestSellers.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {bestSellers.map((product, index) => (
+                <ProductCard key={product._id} product={product} index={index} />
+              ))}
+            </div>
+          ) : (
+            <AnimatedContainer animation="fadeIn">
+              <Card className="text-center py-12">
+                <p className="text-gray-600 dark:text-gray-400 text-lg">
+                  No best sellers available yet.
+                </p>
+              </Card>
+            </AnimatedContainer>
           )}
         </div>
       </section>
 
       {/* New Arrivals */}
-      <section className="py-12 container mx-auto px-4">
-        <h2 className="text-3xl font-bold mb-8">New Arrivals</h2>
-        {newArrivals.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {newArrivals.map((product) => (
-              <ProductCard key={product._id} product={product} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-600">No new arrivals available yet.</p>
-        )}
+      <section className="py-16 bg-gray-50 dark:bg-gray-900">
+        <div className="container mx-auto px-4">
+          <AnimatedContainer animation="fadeIn">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold mb-4 text-gray-900 dark:text-white">New Arrivals</h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Latest smartphones with the newest technology and features
+              </p>
+            </div>
+          </AnimatedContainer>
+          {newArrivals.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {newArrivals.map((product, index) => (
+                <ProductCard key={product._id} product={product} index={index} />
+              ))}
+            </div>
+          ) : (
+            <AnimatedContainer animation="fadeIn">
+              <Card className="text-center py-12">
+                <p className="text-gray-600 dark:text-gray-400 text-lg">
+                  No new arrivals available yet.
+                </p>
+              </Card>
+            </AnimatedContainer>
+          )}
+        </div>
       </section>
     </div>
   );

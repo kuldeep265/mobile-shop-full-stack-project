@@ -21,7 +21,12 @@ const transporter = nodemailer.createTransport({
 // @desc    Register a new user
 // @access  Public
 router.post('/register', [
-  body('name').trim().notEmpty().withMessage('Name is required'),
+  body('name')
+    .trim()
+    .notEmpty()
+    .withMessage('Name is required')
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('Name should contain only letters and spaces'),
   body('email').isEmail().withMessage('Please include a valid email'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
 ], async (req, res) => {
