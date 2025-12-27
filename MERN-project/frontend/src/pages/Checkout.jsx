@@ -1,78 +1,9 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { FaTag } from "react-icons/fa";
 import api from "../utils/api";
 import AuthContext from "../context/AuthContext";
-
-// ----------------------------
-// FIX: VITE Environment Access
-// ----------------------------
-const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_123"
-);
-
-const CheckoutForm = ({ orderData, onSuccess }) => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!stripe || !elements) return;
-
-    setLoading(true);
-
-    try {
-      const { data } = await api.post("/orders/create-payment-intent", {
-        amount: orderData.totalPrice,
-        orderId: orderData._id,
-      });
-
-      const { error, paymentIntent } = await stripe.confirmCardPayment(
-        data.clientSecret,
-        {
-          payment_method: {
-            card: elements.getElement(CardElement),
-          },
-        }
-      );
-
-      if (error) {
-        toast.error(error.message);
-      } else if (paymentIntent.status === "succeeded") {
-        await api.post(`/orders/${orderData._id}/pay`, {
-          paymentIntentId: paymentIntent.id,
-        });
-
-        toast.success("Payment successful!");
-        onSuccess();
-      }
-    } catch {
-      toast.error("Payment failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="p-4 bg-white border rounded shadow">
-        <CardElement />
-      </div>
-      <button
-        type="submit"
-        disabled={!stripe || loading}
-        className="w-full py-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
-      >
-        {loading ? "Processing..." : `Pay ₹${orderData.totalPrice.toLocaleString()}`}
-      </button>
-    </form>
-  );
-};
 
 const Checkout = () => {
   const { user } = useContext(AuthContext);
@@ -88,7 +19,7 @@ const Checkout = () => {
     state: "",
     pincode: "",
   });
-  const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupons, setAppliedCoupons] = useState([]); // Changed to array for multiple coupons
   const [totalCouponDiscount, setTotalCouponDiscount] = useState(0); // Total discount from all coupons
@@ -303,7 +234,7 @@ const Checkout = () => {
   };
 
   // -------------------------
-  // PLACE ORDER (COD + Stripe Init)
+  // PLACE ORDER (Razorpay Only)
   // -------------------------
   const handlePlaceOrder = async () => {
     if (!shippingAddress.name || !shippingAddress.phone || !shippingAddress.address) {
@@ -315,7 +246,7 @@ const Checkout = () => {
       const res = await api.post("/orders", {
         orderItems: cart,
         shippingAddress,
-        paymentMethod,
+        paymentMethod: "razorpay",
         appliedCoupons: appliedCoupons.map(c => ({
           code: c.coupon.code,
           discount: c.discountAmount,
@@ -332,10 +263,8 @@ const Checkout = () => {
         await api.post("/coupons/apply-multiple", { codes: couponCodes });
       }
 
-      if (paymentMethod === "cod") {
-        toast.success("Order placed successfully!");
-        navigate("/orders");
-      }
+      // Proceed to Razorpay payment
+      handleRazorpayPayment(res.data.order);
     } catch (error) {
       toast.error(error.response?.data?.message || "Order failed");
     }
@@ -344,7 +273,7 @@ const Checkout = () => {
   // -------------------------
   // Razorpay Checkout
   // -------------------------
-  const handleRazorpayPayment = async () => {
+  const handleRazorpayPayment = async (orderData = order) => {
     if (!window.Razorpay) {
       toast.error("Razorpay SDK not loaded");
       return;
@@ -352,34 +281,41 @@ const Checkout = () => {
 
     try {
       const { data } = await api.post("/orders/create-razorpay-order", {
-        amount: order.totalPrice,
+        amount: orderData.totalPrice,
       });
 
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_123",
-        amount: order.totalPrice * 100,
+        amount: orderData.totalPrice * 100,
         currency: "INR",
         name: "Fone Factory",
         description: "Order Payment",
         order_id: data.orderId,
         handler: async (resp) => {
-          await api.post(`/orders/${order._id}/pay`, {
-            paymentId: resp.razorpay_payment_id,
-            orderId: resp.razorpay_order_id,
-            signature: resp.razorpay_signature,
-          });
-          toast.success("Payment successful!");
-          navigate("/orders");
+          try {
+            await api.post(`/orders/${orderData._id}/pay`, {
+              paymentId: resp.razorpay_payment_id,
+              orderId: resp.razorpay_order_id,
+              signature: resp.razorpay_signature,
+            });
+            toast.success("Payment successful!");
+            navigate("/orders");
+          } catch (error) {
+            toast.error("Payment verification failed");
+          }
         },
         prefill: {
           name: user.name,
           email: user.email,
         },
+        theme: {
+          color: "#2563eb"
+        }
       };
 
       const razorpay = new window.Razorpay(options);
       razorpay.open();
-    } catch {
+    } catch (error) {
       toast.error("Failed to initialize payment");
     }
   };
@@ -416,44 +352,7 @@ const Checkout = () => {
   const finalTotal = afterDiscount + tax + shipping;
 
   // -------------------------
-  // PAYMENT SCREEN
-  // -------------------------
-  if (order) {
-    return (
-      <div className="container px-4 py-8 mx-auto">
-        <h1 className="mb-8 text-3xl font-bold">Payment</h1>
-
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <div>
-            <h2 className="mb-4 text-xl font-bold">Order Summary</h2>
-
-            <div className="p-6 mb-6 bg-white rounded-lg shadow">
-              <p>Order ID: {order._id}</p>
-              <p>Total: ₹{order.totalPrice.toLocaleString()}</p>
-            </div>
-
-            {paymentMethod === "stripe" && (
-              <Elements stripe={stripePromise}>
-                <CheckoutForm orderData={order} onSuccess={() => navigate("/orders")} />
-              </Elements>
-            )}
-
-            {paymentMethod === "razorpay" && (
-              <button
-                onClick={handleRazorpayPayment}
-                className="w-full py-3 text-white bg-blue-600 rounded hover:bg-blue-700"
-              >
-                Pay with Razorpay
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------
-  // CHECKOUT PAGE
+  // CHECKOUT PAGE (No separate payment screen)
   // -------------------------
   return (
     <div className="container px-4 py-8 mx-auto">
@@ -517,36 +416,18 @@ const Checkout = () => {
             />
           </div>
 
-          {/* PAYMENT METHOD */}
-          <h2 className="mt-8 mb-4 text-xl font-bold">Payment Method</h2>
-
-          <div className="p-6 space-y-2 bg-white rounded-lg shadow">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                checked={paymentMethod === "cod"}
-                onChange={() => setPaymentMethod("cod")}
-              />
-              Cash on Delivery
-            </label>
-
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                checked={paymentMethod === "stripe"}
-                onChange={() => setPaymentMethod("stripe")}
-              />
-              Stripe (Card)
-            </label>
-
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                checked={paymentMethod === "razorpay"}
-                onChange={() => setPaymentMethod("razorpay")}
-              />
-              Razorpay (UPI/Card)
-            </label>
+          {/* Payment Method - Razorpay Only */}
+          <div className="p-6 mt-8 bg-white rounded-lg shadow">
+            <h2 className="mb-4 text-xl font-bold">Payment Method</h2>
+            <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full">
+                ✓
+              </div>
+              <div>
+                <p className="font-semibold text-blue-800">Razorpay</p>
+                <p className="text-sm text-blue-600">UPI, Cards, Net Banking & More</p>
+              </div>
+            </div>
           </div>
 
           {/* Coupon */}
@@ -762,9 +643,10 @@ const Checkout = () => {
 
               <button
                 onClick={handlePlaceOrder}
-                className="w-full py-3 mt-6 text-white bg-blue-600 rounded hover:bg-blue-700"
+                className="w-full py-3 mt-6 text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center justify-center gap-2"
               >
-                Place Order
+                <span>Pay ₹{finalTotal.toLocaleString()}</span>
+                <span className="text-sm opacity-90">via Razorpay</span>
               </button>
             </div>
           </div>

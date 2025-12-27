@@ -1,7 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
 import AuthContext from '../context/AuthContext';
+import AnimatedContainer from '../components/ui/AnimatedContainer';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -10,27 +16,59 @@ const Register = () => {
     password: '',
     confirmPassword: ''
   });
+  const [nameError, setNameError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const { name, email, password, confirmPassword } = formData;
 
+  const validateName = (value) => {
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    if (!value.trim()) {
+      return 'Name is required';
+    }
+    if (!nameRegex.test(value)) {
+      return 'Name should contain only letters and spaces';
+    }
+    return '';
+  };
+
   const onChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name: fieldName, value } = e.target;
+    setFormData({ ...formData, [fieldName]: value });
+    
+    // Validate name field in real-time
+    if (fieldName === 'name') {
+      setNameError(validateName(value));
+    }
   };
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate name before submission
+    const nameValidationError = validateName(name);
+    if (nameValidationError) {
+      setNameError(nameValidationError);
+      toast.error(nameValidationError);
+      return;
+    }
+    
     if (password !== confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
+    
+    setLoading(true);
     try {
       await register({ name, email, password });
       toast.success('Registration successful!');
       navigate('/');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Registration failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,9 +93,14 @@ const Register = () => {
                 required
                 value={name}
                 onChange={onChange}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Your name"
+                className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
+                  nameError ? 'border-red-500' : 'border-gray-300'
+                } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                placeholder="Your name (letters only)"
               />
+              {nameError && (
+                <p className="mt-1 text-sm text-red-600">{nameError}</p>
+              )}
             </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -115,6 +158,19 @@ const Register = () => {
               Sign up
             </button>
           </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          <GoogleAuthButton text="Sign up with Google" />
 
           <div className="text-center">
             <span className="text-sm text-gray-600">

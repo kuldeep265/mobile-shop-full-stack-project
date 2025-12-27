@@ -1,4 +1,5 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Product = require('../models/Product');
@@ -108,8 +109,23 @@ router.get('/users', async (req, res) => {
 // @route   PUT /api/admin/users/:id
 // @desc    Update user
 // @access  Private/Admin
-router.put('/users/:id', async (req, res) => {
+router.put('/users/:id', [
+  body('name')
+    .optional()
+    .trim()
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('Name should contain only letters and spaces'),
+  body('email')
+    .optional()
+    .isEmail()
+    .withMessage('Please include a valid email')
+], async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       req.body,

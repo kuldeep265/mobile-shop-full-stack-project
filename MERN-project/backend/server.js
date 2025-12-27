@@ -5,10 +5,15 @@ const dotenv = require('dotenv');
 const http = require('http');
 const socketIo = require('socket.io');
 const multer = require('multer');
+const passport = require('passport');
+const session = require('express-session');
 const User = require('./models/User');
 
 // Load environment variables
 dotenv.config();
+
+// Passport config
+require('./config/passport')(passport);
 
 const app = express();
 const server = http.createServer(app);
@@ -20,93 +25,125 @@ const io = socketIo(server, {
 });
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+  origin: [
+    process.env.FRONTEND_URL || "http://localhost:3000",
+    /\.vercel\.app$/, // Allow all Vercel deployments
+    "https://localhost:3000",
+    "http://localhost:3000"
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Session middleware (required for Passport)
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true in production with HTTPS
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/fone-factory')
-.then(async () => {
-  console.log('MongoDB Connected');
-  
-  // Create admin user from environment variables if it doesn't exist
-  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
-    try {
-      // Trim and lowercase the email to ensure proper format
-      const adminEmail = process.env.ADMIN_EMAIL.trim().toLowerCase();
-      const adminPassword = process.env.ADMIN_PASSWORD.trim();
-      const adminName = (process.env.ADMIN_NAME || 'Admin').trim();
-      
-      console.log('\n🔧 Admin user setup from .env:');
-      console.log(`   Email: ${adminEmail}`);
-      console.log(`   Password length: ${adminPassword ? adminPassword.length : 0} characters`);
-      console.log(`   Name: ${adminName}`);
-      
-      // Basic email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(adminEmail)) {
-        console.error('Invalid email format in ADMIN_EMAIL:', adminEmail);
-        return;
-      }
-      
-      // Password validation (minimum 6 characters as per User model)
-      if (!adminPassword || adminPassword.length < 6) {
-        console.error('Invalid password in ADMIN_PASSWORD: Password must be at least 6 characters long');
-        return;
-      }
-      
-      const adminExists = await User.findOne({ email: adminEmail }).select('+password');
-      
-      // Always ensure admin user exists with correct password
-      // Delete existing admin if email matches to recreate fresh
-      const existingAdmin = await User.findOne({ email: adminEmail });
-      if (existingAdmin) {
-        console.log('🔄 Found existing admin user, updating...');
-        // Delete and recreate to ensure clean state
-        await User.deleteOne({ email: adminEmail });
-        console.log('   Removed old admin user');
-      }
-      
-      // Create fresh admin user
-      const adminUser = await User.create({
-        name: adminName,
-        email: adminEmail,
-        password: adminPassword,
-        role: 'admin'
-      });
-      
-      // Verify the user was created and can login
-      const verifyUser = await User.findOne({ email: adminEmail }).select('+password');
-      const passwordTest = await verifyUser.matchPassword(adminPassword);
-      
-      if (passwordTest) {
-        console.log('✅ Admin user created and verified successfully!');
-        console.log('   Email:', adminUser.email);
-        console.log('   Name:', adminUser.name);
-        console.log('   Role:', adminUser.role);
-        console.log('   Password verified: ✅');
-        console.log('   📝 Login credentials:');
-        console.log(`      Email: ${adminEmail}`);
-        console.log(`      Password: [from your .env file]`);
-      } else {
-        console.error('❌ ERROR: Admin user created but password verification failed!');
-        console.error('   This should not happen. Please check your User model.');
-      }
-    } catch (error) {
-      console.error('Error creating admin user:', error.message);
-      if (error.errors) {
-        Object.keys(error.errors).forEach(key => {
-          console.error(`  ${key}: ${error.errors[key].message}`);
+const connectDB = async () => {
+  try {
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mobile-store';
+    
+    console.log('Connecting to MongoDB...');
+    await mongoose.connect(mongoURI);
+    console.log('MongoDB Connected successfully!');
+    
+    // Create admin user from environment variables if it doesn't exist
+    if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+      try {
+        // Trim and lowercase the email to ensure proper format
+        const adminEmail = process.env.ADMIN_EMAIL.trim().toLowerCase();
+        const adminPassword = process.env.ADMIN_PASSWORD.trim();
+        const adminName = (process.env.ADMIN_NAME || 'Admin').trim();
+        
+        console.log('\n🔧 Admin user setup from .env:');
+        console.log(`   Email: ${adminEmail}`);
+        console.log(`   Password length: ${adminPassword ? adminPassword.length : 0} characters`);
+        console.log(`   Name: ${adminName}`);
+        
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(adminEmail)) {
+          console.error('Invalid email format in ADMIN_EMAIL:', adminEmail);
+          return;
+        }
+        
+        // Password validation (minimum 6 characters as per User model)
+        if (!adminPassword || adminPassword.length < 6) {
+          console.error('Invalid password in ADMIN_PASSWORD: Password must be at least 6 characters long');
+          return;
+        }
+        
+        // Always ensure admin user exists with correct password
+        // Delete existing admin if email matches to recreate fresh
+        const existingAdmin = await User.findOne({ email: adminEmail });
+        if (existingAdmin) {
+          console.log('🔄 Found existing admin user, updating...');
+          // Delete and recreate to ensure clean state
+          await User.deleteOne({ email: adminEmail });
+          console.log('   Removed old admin user');
+        }
+        
+        // Create fresh admin user
+        const adminUser = await User.create({
+          name: adminName,
+          email: adminEmail,
+          password: adminPassword,
+          role: 'admin'
         });
+        
+        // Verify the user was created and can login
+        const verifyUser = await User.findOne({ email: adminEmail }).select('+password');
+        const passwordTest = await verifyUser.matchPassword(adminPassword);
+        
+        if (passwordTest) {
+          console.log('✅ Admin user created and verified successfully!');
+          console.log('   Email:', adminUser.email);
+          console.log('   Name:', adminUser.name);
+          console.log('   Role:', adminUser.role);
+          console.log('   Password verified: ✅');
+          console.log('   📝 Login credentials:');
+          console.log(`      Email: ${adminEmail}`);
+          console.log(`      Password: [from your .env file]`);
+        } else {
+          console.error('❌ ERROR: Admin user created but password verification failed!');
+          console.error('   This should not happen. Please check your User model.');
+        }
+      } catch (error) {
+        console.error('Error creating admin user:', error.message);
+        if (error.errors) {
+          Object.keys(error.errors).forEach(key => {
+            console.error(`  ${key}: ${error.errors[key].message}`);
+          });
+        }
+        console.error('Full error:', error);
       }
-      console.error('Full error:', error);
+    } else {
+      console.log('Admin credentials not found in .env file');
+      console.log('Please add ADMIN_EMAIL and ADMIN_PASSWORD to your .env file');
     }
-  } else {
-    console.log('Admin credentials not found in .env file');
-    console.log('Please add ADMIN_EMAIL and ADMIN_PASSWORD to your .env file');
+  } catch (error) {
+    console.error('MongoDB connection error:', error.message);
+    // Don't exit, let the app continue without database for now
+    console.log('⚠️  Continuing without database connection...');
   }
-})
-.catch(err => console.error('MongoDB connection error:', err));
+};
+
+connectDB();
 
 // Socket.io for live chat
 io.on('connection', (socket) => {

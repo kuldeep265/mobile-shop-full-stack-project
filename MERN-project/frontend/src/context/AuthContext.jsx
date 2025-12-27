@@ -48,12 +48,22 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Login
-  const login = async (formData) => {
+  const login = async (formDataOrUser, tokenParam = null) => {
     try {
-      // Normalize email to lowercase before sending
+      // If called with user object and token (from Google OAuth)
+      if (tokenParam) {
+        const { token, user } = { token: tokenParam, user: formDataOrUser };
+        setToken(token);
+        setUser(user);
+        localStorage.setItem('token', token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        return { token, user };
+      }
+      
+      // Regular email/password login
       const normalizedFormData = {
-        ...formData,
-        email: formData.email?.toLowerCase().trim()
+        ...formDataOrUser,
+        email: formDataOrUser.email?.toLowerCase().trim()
       };
       
       const res = await api.post('/auth/login', normalizedFormData);

@@ -19,6 +19,7 @@ const Profile = () => {
     pincode: '',
     isDefault: false
   });
+  const [addressNameError, setAddressNameError] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -30,8 +31,37 @@ const Profile = () => {
     }
   }, [user]);
 
+  const validateName = (value) => {
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    if (!value.trim()) {
+      return 'Name is required';
+    }
+    if (!nameRegex.test(value)) {
+      return 'Name should contain only letters and spaces';
+    }
+    return '';
+  };
+
+  const handleAddressChange = (field, value) => {
+    setNewAddress({ ...newAddress, [field]: value });
+    
+    // Validate name field in real-time
+    if (field === 'name') {
+      setAddressNameError(validateName(value));
+    }
+  };
+
   const handleAddressSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate address name before submission
+    const nameValidationError = validateName(newAddress.name);
+    if (nameValidationError) {
+      setAddressNameError(nameValidationError);
+      toast.error(nameValidationError);
+      return;
+    }
+    
     try {
       // This would typically be an API call to update user addresses
       toast.success('Address added successfully');
@@ -44,6 +74,7 @@ const Profile = () => {
         pincode: '',
         isDefault: false
       });
+      setAddressNameError('');
       loadUser();
     } catch (error) {
       toast.error('Failed to add address');
@@ -84,26 +115,33 @@ const Profile = () => {
           <h2 className="text-xl font-bold mb-4">Addresses</h2>
           <div className="bg-white rounded-lg shadow-md p-6 mb-4">
             <form onSubmit={handleAddressSubmit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={newAddress.name}
-                onChange={(e) => setNewAddress({ ...newAddress, name: e.target.value })}
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                required
-              />
+              <div>
+                <input
+                  type="text"
+                  placeholder="Full Name (letters only)"
+                  value={newAddress.name}
+                  onChange={(e) => handleAddressChange('name', e.target.value)}
+                  className={`w-full border ${
+                    addressNameError ? 'border-red-500' : 'border-gray-300'
+                  } rounded px-3 py-2`}
+                  required
+                />
+                {addressNameError && (
+                  <p className="mt-1 text-sm text-red-600">{addressNameError}</p>
+                )}
+              </div>
               <input
                 type="tel"
                 placeholder="Phone Number"
                 value={newAddress.phone}
-                onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
+                onChange={(e) => handleAddressChange('phone', e.target.value)}
                 className="w-full border border-gray-300 rounded px-3 py-2"
                 required
               />
               <textarea
                 placeholder="Address"
                 value={newAddress.address}
-                onChange={(e) => setNewAddress({ ...newAddress, address: e.target.value })}
+                onChange={(e) => handleAddressChange('address', e.target.value)}
                 className="w-full border border-gray-300 rounded px-3 py-2"
                 rows="3"
                 required
@@ -113,7 +151,7 @@ const Profile = () => {
                   type="text"
                   placeholder="City"
                   value={newAddress.city}
-                  onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                  onChange={(e) => handleAddressChange('city', e.target.value)}
                   className="border border-gray-300 rounded px-3 py-2"
                   required
                 />
@@ -121,7 +159,7 @@ const Profile = () => {
                   type="text"
                   placeholder="State"
                   value={newAddress.state}
-                  onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+                  onChange={(e) => handleAddressChange('state', e.target.value)}
                   className="border border-gray-300 rounded px-3 py-2"
                   required
                 />
@@ -130,7 +168,7 @@ const Profile = () => {
                 type="text"
                 placeholder="Pincode"
                 value={newAddress.pincode}
-                onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })}
+                onChange={(e) => handleAddressChange('pincode', e.target.value)}
                 className="w-full border border-gray-300 rounded px-3 py-2"
                 required
               />
@@ -138,7 +176,7 @@ const Profile = () => {
                 <input
                   type="checkbox"
                   checked={newAddress.isDefault}
-                  onChange={(e) => setNewAddress({ ...newAddress, isDefault: e.target.checked })}
+                  onChange={(e) => handleAddressChange('isDefault', e.target.checked)}
                   className="mr-2"
                 />
                 Set as default address

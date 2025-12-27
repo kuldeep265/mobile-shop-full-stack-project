@@ -5,12 +5,6 @@ const User = require('../models/User');
 const Coupon = require('../models/Coupon');
 const { protect, admin } = require('../middleware/auth');
 
-// Initialize Stripe (only if key is provided)
-let stripe = null;
-if (process.env.STRIPE_SECRET_KEY) {
-  stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-}
-
 const Razorpay = require('razorpay');
 
 const router = express.Router();
@@ -95,12 +89,12 @@ router.post('/', protect, async (req, res) => {
     const shippingPrice = afterDiscount > 5000 ? 0 : 100;
     const totalPrice = afterDiscount + taxPrice + shippingPrice;
 
-    // Create order
+    // Create order (Razorpay only)
     const order = await Order.create({
       user: req.user.id,
       orderItems: populatedItems,
       shippingAddress,
-      paymentMethod,
+      paymentMethod: 'razorpay',
       itemsPrice,
       taxPrice,
       shippingPrice,
@@ -108,7 +102,7 @@ router.post('/', protect, async (req, res) => {
       couponCode: couponCode || (finalAppliedCoupons.length > 0 ? finalAppliedCoupons.map(c => c.code).join(', ') : undefined),
       appliedCoupons: finalAppliedCoupons,
       totalPrice,
-      isPaid: paymentMethod === 'cod' ? false : false,
+      isPaid: false,
       status: 'pending'
     });
 
@@ -133,7 +127,7 @@ router.post('/', protect, async (req, res) => {
 });
 
 // @route   POST /api/orders/:id/pay
-// @desc    Process payment
+// @desc    Process Razorpay payment
 // @access  Private
 router.post('/:id/pay', protect, async (req, res) => {
   try {
@@ -147,80 +141,33 @@ router.post('/:id/pay', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
-    if (order.paymentMethod === 'stripe') {
-      if (!stripe) {
-        return res.status(400).json({ message: 'Stripe is not configured. Please add STRIPE_SECRET_KEY to .env' });
-      }
-      const { paymentIntentId } = req.body;
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-      if (paymentIntent.status === 'succeeded') {
-        order.isPaid = true;
-        order.paidAt = Date.now();
-        order.paymentResult = {
-          id: paymentIntent.id,
-          status: paymentIntent.status,
-          email_address: paymentIntent.receipt_email
-        };
-        order.status = 'processing';
-        await order.save();
-
-        return res.json({ success: true, order });
-      }
-    } else if (order.paymentMethod === 'razorpay') {
-      if (!process.env.RAZORPAY_KEY_SECRET) {
-        return res.status(400).json({ message: 'Razorpay is not configured. Please add RAZORPAY_KEY_SECRET to .env' });
-      }
-
-      const { paymentId, orderId, signature } = req.body;
-      
-      // Verify signature
-      const crypto = require('crypto');
-      const generatedSignature = crypto
-        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-        .update(`${orderId}|${paymentId}`)
-        .digest('hex');
-
-      if (generatedSignature === signature) {
-        order.isPaid = true;
-        order.paidAt = Date.now();
-        order.paymentResult = {
-          id: paymentId,
-          status: 'captured'
-        };
-        order.status = 'processing';
-        await order.save();
-
-        return res.json({ success: true, order });
-      } else {
-        return res.status(400).json({ message: 'Invalid payment signature' });
-      }
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(400).json({ message: 'Razorpay is not configured. Please add RAZORPAY_KEY_SECRET to .env' });
     }
 
-    res.status(400).json({ message: 'Payment processing failed' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
+    const { paymentId, orderId, signature } = req.body;
+    
+    // Verify signature
+    const crypto = require('crypto');
+    const generatedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(`${orderId}|${paymentId}`)
+      .digest('hex');
 
-// @route   POST /api/orders/create-payment-intent
-// @desc    Create Stripe payment intent
-// @access  Private
-router.post('/create-payment-intent', protect, async (req, res) => {
-  try {
-    if (!stripe) {
-      return res.status(400).json({ message: 'Stripe is not configured. Please add STRIPE_SECRET_KEY to .env' });
+    if (generatedSignature === signature) {
+      order.isPaid = true;
+      order.paidAt = Date.now();
+      order.paymentResult = {
+        id: paymentId,
+        status: 'captured'
+      };
+      order.status = 'processing';
+      await order.save();
+
+      return res.json({ success: true, order });
+    } else {
+      return res.status(400).json({ message: 'Invalid payment signature' });
     }
-
-    const { amount, orderId } = req.body;
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: 'usd',
-      metadata: { orderId }
-    });
-
-    res.json({ success: true, clientSecret: paymentIntent.client_secret });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

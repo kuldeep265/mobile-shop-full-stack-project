@@ -17,6 +17,7 @@ import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import VerifyOTP from './pages/VerifyOTP';
 import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
 import Orders from './pages/Orders';
@@ -30,6 +31,8 @@ import AdminOrderDetail from './pages/admin/OrderDetail';
 import AdminUsers from './pages/admin/Users';
 import AdminLogin from './pages/admin/Login';
 import Chat from './pages/Chat';
+import AuthSuccess from './pages/AuthSuccess';
+import SetupStatus from './pages/SetupStatus';
 
 // Context
 import { AuthProvider } from './context/AuthContext';
@@ -38,6 +41,8 @@ import PrivateRoute from './components/routing/PrivateRoute';
 import AdminRoute from './components/routing/AdminRoute';
 
 function App() {
+  console.log('App component is rendering');
+  
   return (
     <AuthProvider>
       <CompareProvider>
@@ -53,7 +58,10 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/verify-otp" element={<VerifyOTP />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />
+              <Route path="/auth/success" element={<AuthSuccess />} />
+              <Route path="/setup-status" element={<SetupStatus />} />
               <Route path="/compare" element={<Compare />} />
               <Route path="/chat" element={<Chat />} />
               
