@@ -7,7 +7,10 @@ import AnimatedContainer from '../components/ui/AnimatedContainer';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+<<<<<<< HEAD
 import GoogleAuthButton from '../components/GoogleAuthButton';
+=======
+>>>>>>> 269670d8f0f6a267400ffb3ab683084d1411c32f
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -102,6 +105,7 @@ const Login = () => {
               </Button>
             </AnimatedContainer>
 
+<<<<<<< HEAD
             <AnimatedContainer animation="fadeIn" delay={1100}>
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -120,6 +124,9 @@ const Login = () => {
             </AnimatedContainer>
 
             <AnimatedContainer animation="fadeIn" delay={1300}>
+=======
+            <AnimatedContainer animation="fadeIn" delay={1200}>
+>>>>>>> 269670d8f0f6a267400ffb3ab683084d1411c32f
               <div className="text-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   Don't have an account?{' '}

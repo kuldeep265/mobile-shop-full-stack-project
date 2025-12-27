@@ -54,6 +54,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // MongoDB Connection
+<<<<<<< HEAD
 const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mobile-store';
@@ -104,6 +105,82 @@ const connectDB = async () => {
           email: adminEmail,
           password: adminPassword,
           role: 'admin'
+=======
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/fone-factory';
+console.log('Connecting to MongoDB...');
+mongoose.connect(mongoURI)
+.then(async () => {
+  console.log('MongoDB Connected');
+  
+  // Create admin user from environment variables if it doesn't exist
+  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+    try {
+      // Trim and lowercase the email to ensure proper format
+      const adminEmail = process.env.ADMIN_EMAIL.trim().toLowerCase();
+      const adminPassword = process.env.ADMIN_PASSWORD.trim();
+      const adminName = (process.env.ADMIN_NAME || 'Admin').trim();
+      
+      console.log('\n🔧 Admin user setup from .env:');
+      console.log(`   Email: ${adminEmail}`);
+      console.log(`   Password length: ${adminPassword ? adminPassword.length : 0} characters`);
+      console.log(`   Name: ${adminName}`);
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(adminEmail)) {
+        console.error('Invalid email format in ADMIN_EMAIL:', adminEmail);
+        return;
+      }
+      
+      // Password validation (minimum 6 characters as per User model)
+      if (!adminPassword || adminPassword.length < 6) {
+        console.error('Invalid password in ADMIN_PASSWORD: Password must be at least 6 characters long');
+        return;
+      }
+      
+      const adminExists = await User.findOne({ email: adminEmail }).select('+password');
+      
+      // Always ensure admin user exists with correct password
+      // Delete existing admin if email matches to recreate fresh
+      const existingAdmin = await User.findOne({ email: adminEmail });
+      if (existingAdmin) {
+        console.log('🔄 Found existing admin user, updating...');
+        // Delete and recreate to ensure clean state
+        await User.deleteOne({ email: adminEmail });
+        console.log('   Removed old admin user');
+      }
+      
+      // Create fresh admin user
+      const adminUser = await User.create({
+        name: adminName,
+        email: adminEmail,
+        password: adminPassword,
+        role: 'admin'
+      });
+      
+      // Verify the user was created and can login
+      const verifyUser = await User.findOne({ email: adminEmail }).select('+password');
+      const passwordTest = await verifyUser.matchPassword(adminPassword);
+      
+      if (passwordTest) {
+        console.log('✅ Admin user created and verified successfully!');
+        console.log('   Email:', adminUser.email);
+        console.log('   Name:', adminUser.name);
+        console.log('   Role:', adminUser.role);
+        console.log('   Password verified: ✅');
+        console.log('   📝 Login credentials:');
+        console.log(`      Email: ${adminEmail}`);
+        console.log(`      Password: [from your .env file]`);
+      } else {
+        console.error('❌ ERROR: Admin user created but password verification failed!');
+        console.error('   This should not happen. Please check your User model.');
+      }
+    } catch (error) {
+      console.error('Error creating admin user:', error.message);
+      if (error.errors) {
+        Object.keys(error.errors).forEach(key => {
+          console.error(`  ${key}: ${error.errors[key].message}`);
+>>>>>>> 269670d8f0f6a267400ffb3ab683084d1411c32f
         });
         
         // Verify the user was created and can login

@@ -7,7 +7,10 @@ import AnimatedContainer from '../components/ui/AnimatedContainer';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+<<<<<<< HEAD
 import GoogleAuthButton from '../components/GoogleAuthButton';
+=======
+>>>>>>> 269670d8f0f6a267400ffb3ab683084d1411c32f
 
 const Register = () => {
   const [formData, setFormData] = useState({
