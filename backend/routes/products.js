@@ -247,7 +247,21 @@ router.post('/', protect, admin, upload.array('images', 5), async (req, res) => 
       }
     }
 
-    productData.images = images;
+    if (images.length > 0) {
+      productData.images = images;
+    } else if (productData.images && Array.isArray(productData.images) && productData.images.length > 0) {
+      productData.images = productData.images.map((item, idx) => {
+        if (typeof item === 'string') {
+          return { url: item, public_id: `img_${Date.now()}_${idx}` };
+        }
+        return {
+          url: item.url || item,
+          public_id: item.public_id || `img_${Date.now()}_${idx}`
+        };
+      });
+    } else if (!productData.images) {
+      productData.images = [];
+    }
     
     // Validate required fields
     if (!productData.name || !productData.brand || !productData.description || !productData.price) {

@@ -375,6 +375,7 @@ const Products = () => {
                       <option value="128GB">128GB</option>
                       <option value="256GB">256GB</option>
                       <option value="512GB">512GB</option>
+                      <option value="1TB">1TB</option>
                     </select>
                   </div>
 
@@ -391,6 +392,7 @@ const Products = () => {
                       <option value="6GB">6GB</option>
                       <option value="8GB">8GB</option>
                       <option value="12GB">12GB</option>
+                      <option value="16GB">16GB</option>
                     </select>
                   </div>
                 </div>
