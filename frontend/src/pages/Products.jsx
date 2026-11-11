@@ -55,7 +55,7 @@ const Products = () => {
     try {
       const params = {
         page: currentPage,
-        limit: 12,
+        limit: 100,
         ...filters
       };
       const res = await api.get('/products', { params });

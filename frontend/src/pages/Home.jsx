@@ -25,9 +25,9 @@ const Home = () => {
     try {
       setError(null);
       const [featured, bestSeller, newArrival] = await Promise.all([
-        api.get('/products?limit=8&isFeatured=true').catch(() => ({ data: { products: [] } })),
-        api.get('/products?limit=8&bestSeller=true&sort=rating').catch(() => ({ data: { products: [] } })),
-        api.get('/products?limit=8&newArrival=true&sort=newest').catch(() => ({ data: { products: [] } }))
+        api.get('/products?limit=12&isFeatured=true').catch(() => ({ data: { products: [] } })),
+        api.get('/products?limit=12&bestSeller=true&sort=rating').catch(() => ({ data: { products: [] } })),
+        api.get('/products?limit=12&newArrival=true&sort=newest').catch(() => ({ data: { products: [] } }))
       ]);
 
       setFeaturedProducts(featured.data?.products || []);

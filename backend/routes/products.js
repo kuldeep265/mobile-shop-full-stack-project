@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 12,
+      limit = 100,
       brand,
       minPrice,
       maxPrice,
@@ -85,6 +85,11 @@ router.get('/', async (req, res) => {
 
     if (bestSeller === 'true') {
       query.isBestSeller = true;
+    }
+
+    // Support isFeatured filter (used by Home page)
+    if (req.query.isFeatured === 'true') {
+      query.isFeatured = true;
     }
 
     // Build sort
